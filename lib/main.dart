@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io'; // <--- 1. WYMAGANE DO IGNOROWANIA BŁĘDÓW SSL
 import 'package:flutter/material.dart';
+import 'package:hacknation2025mobile/theme/theme.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 
@@ -29,8 +30,72 @@ class MyApp extends StatelessWidget {
       title: 'QR Scanner Demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        primarySwatch: AppTheme.colors.primary,
+        scaffoldBackgroundColor: AppTheme.colors.appBackground,
+        appBarTheme: AppBarTheme(
+          elevation: 0,
+          backgroundColor: AppTheme.colors.appBackground,
+          iconTheme: IconThemeData(
+            color: AppTheme.colors.textPrimary,
+          ),
+          actionsIconTheme: IconThemeData(
+            color: AppTheme.colors.textPrimary,
+          ),
+        ),
+        textTheme: AppTheme.typography,
+        inputDecorationTheme: InputDecorationTheme(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(
+                Radius.circular(AppTheme.mainBorderRadiusValue)),
+          ),
+          fillColor: Colors.white,
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: AppTheme.colors.primary,
+        ),
+        outlinedButtonTheme: const OutlinedButtonThemeData(
+            style: ButtonStyle(
+          shape: MaterialStatePropertyAll(StadiumBorder()),
+        )),
+        elevatedButtonTheme: const ElevatedButtonThemeData(
+            style: ButtonStyle(
+          elevation: MaterialStatePropertyAll(0),
+          shape: MaterialStatePropertyAll(StadiumBorder()),
+        )),
+        filledButtonTheme: const FilledButtonThemeData(
+            style: ButtonStyle(
+          padding: MaterialStatePropertyAll(
+              EdgeInsets.symmetric(vertical: 18, horizontal: 24)),
+          elevation: MaterialStatePropertyAll(0),
+          shape: MaterialStatePropertyAll(StadiumBorder()),
+        )),
+        textButtonTheme: const TextButtonThemeData(
+            style: ButtonStyle(
+          padding: MaterialStatePropertyAll(
+              EdgeInsets.symmetric(vertical: 18, horizontal: 24)),
+          elevation: MaterialStatePropertyAll(0),
+          shape: MaterialStatePropertyAll(StadiumBorder()),
+        )),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: AppTheme.colors.appBackground,
+          elevation: 0,
+          selectedItemColor: AppTheme.colors.primary.shade500,
+          unselectedItemColor: const Color(0xff4b5563),
+          selectedLabelStyle:
+              const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          unselectedLabelStyle:
+              const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        dialogTheme: DialogTheme(
+          shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(AppTheme.mainBorderRadiusValue * 2)),
+          titleTextStyle: AppTheme.typography.headlineMedium,
+          contentTextStyle: AppTheme.typography.bodyMedium,
+        ),
       ),
       home: const QRScannerPage(),
     );
@@ -59,7 +124,6 @@ class _QRScannerPageState extends State<QRScannerPage>
 
   String _statusMessage = 'Zeskanuj kod QR';
   Color _statusColor = Colors.black87;
-  String _debugInfo = '';
 
   // Dane z JSONa
   String? _institutionName;
@@ -73,7 +137,6 @@ class _QRScannerPageState extends State<QRScannerPage>
       _scanFinished = false;
       _statusMessage = 'Przetwarzanie...';
       _statusColor = Colors.blue;
-      _debugInfo = 'Raw: $rawQrValue';
       _institutionName = null;
       _isValid = null;
     });
@@ -102,23 +165,7 @@ class _QRScannerPageState extends State<QRScannerPage>
         throw Exception("Brak znaków '/' w kodzie.");
       }
 
-      setState(() {
-        _debugInfo += '\nUUID: $uuid\nToken: $token';
-      });
-
       final url = Uri.parse('$_serverHost/websites/$uuid/verify-token');
-
-      // Pokazujemy URL w logach
-      setState(() {
-        _debugInfo += '\nRequest URL: $url';
-      });
-
-      // --- LOGOWANIE WYSYŁANIA ---
-      debugPrint('========================================');
-      debugPrint('🚀 WYSYŁAM ZAPYTANIE POST');
-      debugPrint('🔗 URL: $url');
-      debugPrint('📦 BODY: ${jsonEncode({'token': token})}');
-      debugPrint('========================================');
 
       final response = await http.post(
         url,
@@ -130,13 +177,6 @@ class _QRScannerPageState extends State<QRScannerPage>
           'token': token,
         }),
       );
-
-      // --- LOGOWANIE ODPOWIEDZI ---
-      debugPrint('========================================');
-      debugPrint('✅ OTRZYMANO ODPOWIEDŹ');
-      debugPrint('🔢 STATUS CODE: ${response.statusCode}');
-      debugPrint('📄 RESPONSE BODY:\n${response.body}');
-      debugPrint('========================================');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Dekodujemy body jako UTF-8
@@ -152,31 +192,17 @@ class _QRScannerPageState extends State<QRScannerPage>
             _statusColor = Colors.green;
           } else {
             _statusMessage = 'Weryfikacja negatywna!';
-            _statusColor = Colors.orange;
+            _statusColor = Colors.red;
           }
-
-          _debugInfo +=
-              '\nOdpowiedź serwera:\n${const JsonEncoder.withIndent('  ').convert(data)}';
         });
       } else {
         setState(() {
           _statusMessage = 'BŁĄD SERWERA (${response.statusCode})';
           _statusColor = Colors.red;
-          _debugInfo += '\nBody: ${response.body}';
         });
       }
     } catch (e) {
-      // --- LOGOWANIE BŁĘDU ---
-      debugPrint('========================================');
-      debugPrint('❌ WYSTĄPIŁ WYJĄTEK (EXCEPTION)');
-      debugPrint(e.toString());
-      debugPrint('========================================');
-
-      setState(() {
-        _statusMessage = 'BŁĄD POŁĄCZENIA';
-        _statusColor = Colors.red;
-        _debugInfo += '\nSzczegóły błędu:\n$e';
-      });
+      // TODO: handle
     } finally {
       if (mounted) {
         setState(() {
@@ -193,7 +219,6 @@ class _QRScannerPageState extends State<QRScannerPage>
       _scanFinished = false;
       _statusMessage = 'Zeskanuj kod QR';
       _statusColor = Colors.black87;
-      _debugInfo = '';
       _institutionName = null;
       _isValid = null;
     });
@@ -205,7 +230,6 @@ class _QRScannerPageState extends State<QRScannerPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Weryfikator'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -292,17 +316,6 @@ class _QRScannerPageState extends State<QRScannerPage>
                         fontSize: 18,
                         color: _statusColor,
                       ),
-                    ),
-                    const Divider(),
-                    const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text("LOGI (Debug):",
-                            style:
-                                TextStyle(fontSize: 10, color: Colors.grey))),
-                    Text(
-                      _debugInfo,
-                      style: const TextStyle(
-                          fontSize: 11, fontFamily: 'monospace'),
                     ),
                   ],
                 ),
